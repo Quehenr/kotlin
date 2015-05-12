@@ -20,7 +20,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
 import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.lexer.JetTokens;
 import org.jetbrains.kotlin.psi.*;
+import org.jetbrains.kotlin.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.BindingContextUtils;
 import org.jetbrains.kotlin.resolve.BindingTrace;
@@ -30,6 +32,7 @@ import org.jetbrains.kotlin.types.JetType;
 import org.jetbrains.kotlin.types.TypeUtils;
 import org.jetbrains.kotlin.types.expressions.JetTypeInfo;
 
+import static org.jetbrains.kotlin.resolve.BindingContext.TYPE;
 import static org.jetbrains.kotlin.resolve.DescriptorUtils.isEnumEntry;
 import static org.jetbrains.kotlin.resolve.DescriptorUtils.isEnumClass;
 import static org.jetbrains.kotlin.types.TypesPackage.isFlexible;
@@ -60,7 +63,7 @@ public final class WhenChecker {
 
         return classDescriptor;
     }
-
+        
     @Nullable
     private static JetType whenSubjectType(@NotNull JetWhenExpression expression, @NotNull BindingContext context) {
         JetExpression subjectExpression = expression.getSubjectExpression();
@@ -98,6 +101,21 @@ public final class WhenChecker {
         return notEmpty;
     }
 
+    private static boolean isWhenOnSealedClassExhaustive(
+            @NotNull JetWhenExpression expression, @NotNull BindingTrace trace, @NotNull ClassDescriptor classDescriptor) {
+        assert classDescriptor.getModality() == Modality.SEALED;
+        boolean notEmpty = false;
+        for (DeclarationDescriptor descriptor : classDescriptor.getUnsubstitutedInnerClassesScope().getAllDescriptors()) {
+            if (descriptor instanceof ClassDescriptor) {
+                notEmpty = true;
+                if (!containsIsClassCase(expression, (ClassDescriptor) descriptor, trace)) {
+                    return false;
+                }
+            }
+        }
+        return notEmpty;
+    }
+
     /**
      * It's assumed that function is called for a final type. In this case the only possible smart cast is to not nullable type.
      * @return true if type is nullable, and cannot be smart casted
@@ -118,7 +136,7 @@ public final class WhenChecker {
         }
         return true;
     }
-
+    
     public static boolean isWhenExhaustive(@NotNull JetWhenExpression expression, @NotNull BindingTrace trace) {
         JetType type = whenSubjectType(expression, trace.getBindingContext());
         if (type == null) return false;
@@ -130,8 +148,10 @@ public final class WhenChecker {
                 exhaustive = isWhenOnBooleanExhaustive(expression, trace);
             }
             else {
-                // TODO: sealed hierarchies, etc.
-                exhaustive = false;
+                ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(type);
+                exhaustive = (classDescriptor != null
+                              && classDescriptor.getModality() == Modality.SEALED
+                              && isWhenOnSealedClassExhaustive(expression, trace, classDescriptor));
             }
         }
         else {
@@ -162,6 +182,31 @@ public final class WhenChecker {
                     continue;
                 }
                 if (isCheckForEnumEntry((JetWhenConditionWithExpression) condition, enumEntry, trace)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsIsClassCase(
+            @NotNull JetWhenExpression whenExpression,
+            @NotNull ClassDescriptor sealedMemberClass,
+            @NotNull BindingTrace trace
+    ) {
+        for (JetWhenEntry whenEntry : whenExpression.getEntries()) {
+            for (JetWhenCondition condition : whenEntry.getConditions()) {
+                if (!(condition instanceof JetWhenConditionIsPattern)) {
+                    continue;
+                }
+                JetWhenConditionIsPattern conditionIsPattern = (JetWhenConditionIsPattern) condition;
+                boolean isNegated = conditionIsPattern.isNegated();
+                JetType checkedType = trace.get(BindingContext.TYPE, conditionIsPattern.getTypeReference());
+                if (checkedType == null) {
+                    continue;
+                }
+                ClassDescriptor checkedDescriptor = TypeUtils.getClassDescriptor(checkedType);
+                if (sealedMemberClass.equals(checkedDescriptor) ^ isNegated) {
                     return true;
                 }
             }
