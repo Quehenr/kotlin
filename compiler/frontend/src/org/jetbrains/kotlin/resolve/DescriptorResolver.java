@@ -1102,6 +1102,9 @@ public class DescriptorResolver {
         List<TypeParameterDescriptor> parameters = type.getConstructor().getParameters();
         List<TypeProjection> arguments = type.getArguments();
         assert parameters.size() == arguments.size();
+        for (TypeProjection argument: arguments) {
+            if (argument.getType().isError()) return;
+        }
 
         List<JetTypeReference> jetTypeArguments = typeElement.getTypeArgumentsAsTypes();
 
@@ -1117,7 +1120,9 @@ public class DescriptorResolver {
             return;
         }
 
-        assert jetTypeArguments.size() == arguments.size() : typeElement.getText() + ": " + jetTypeArguments + " - " + arguments;
+        if (jetTypeArguments.size() != arguments.size()) {
+            throw new AssertionError(typeElement.getText() + ": " + jetTypeArguments + " - " + arguments);
+        }
 
         TypeSubstitutor substitutor = TypeSubstitutor.create(type);
         for (int i = 0; i < jetTypeArguments.size(); i++) {
