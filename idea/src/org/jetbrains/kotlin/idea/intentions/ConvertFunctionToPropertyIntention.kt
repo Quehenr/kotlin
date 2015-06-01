@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.idea.intentions
 
+import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
@@ -51,7 +52,7 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.types.expressions.OperatorConventions
 import java.util.ArrayList
 
-public class ConvertFunctionToPropertyIntention : JetSelfTargetingIntention<JetNamedFunction>(javaClass(), "Convert function to property") {
+public class ConvertFunctionToPropertyIntention : JetSelfTargetingIntention<JetNamedFunction>(javaClass(), "Convert function to property"), LowPriorityAction {
     private var JetNamedFunction.typeFqNameToAdd: String? by UserDataProperty(Key.create("TYPE_FQ_NAME_TO_ADD"))
 
     private inner class Converter(
@@ -71,7 +72,7 @@ public class ConvertFunctionToPropertyIntention : JetSelfTargetingIntention<JetN
                 originalFunction.typeFqNameToAdd?.let { function.setTypeReference(psiFactory.createType(it)) }
             }
 
-            function.getFunKeyword()!!.replace(propertySample.getValOrVarNode().getPsi())
+            function.getFunKeyword()!!.replace(propertySample.getValOrVarKeyword())
             function.getValueParameterList()?.delete()
             val insertAfter = (function.getEqualsToken() ?: function.getBodyExpression())
                     ?.siblings(forward = false, withItself = false)
