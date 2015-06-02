@@ -90,6 +90,7 @@ public class FunctionsTypingVisitor(facade: ExpressionTypingInternals) : Express
                     context.trace, context.dataFlowInfo, context.expectedType
             )
         }
+        components.annotationResolver.resolveAnnotationArguments(function.getAnnotationEntries(), context.trace)
 
         val functionInnerScope = FunctionDescriptorUtil.getFunctionInnerScope(context.scope, functionDescriptor, context.trace)
         components.expressionTypingServices.checkFunctionReturnType(

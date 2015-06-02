@@ -813,6 +813,12 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest(fileName);
             }
 
+            @TestMetadata("RecursivelyAnnotatedGlobalFunction.kt")
+            public void testRecursivelyAnnotatedGlobalFunction() throws Exception {
+                String fileName = JetTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/annotations/RecursivelyAnnotatedGlobalFunction.kt");
+                doTest(fileName);
+            }
+
             @TestMetadata("RecursivelyAnnotatedGlobalProperty.kt")
             public void testRecursivelyAnnotatedGlobalProperty() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/annotations/RecursivelyAnnotatedGlobalProperty.kt");

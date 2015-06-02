@@ -96,7 +96,6 @@ class FunctionDescriptorResolver(
         initializeFunctionDescriptorAndExplicitReturnType(containingDescriptor, scope, function, functionDescriptor, trace, expectedFunctionType)
         initializeFunctionReturnTypeBasedOnFunctionBody(scope, function, functionDescriptor, trace, dataFlowInfo)
         BindingContextUtils.recordFunctionDeclarationToDescriptor(trace, function, functionDescriptor)
-        annotationResolver.resolveAnnotationArguments(function.getAnnotationEntries(), trace)
         return functionDescriptor
     }
 
