@@ -165,6 +165,11 @@ public class FunctionsTypingVisitor(facade: ExpressionTypingInternals) : Express
         components.functionDescriptorResolver.
                 initializeFunctionDescriptorAndExplicitReturnType(context.scope.getContainingDeclaration(), context.scope, functionLiteral,
                                                                   functionDescriptor, context.trace, context.expectedType)
+        for (parameter in expression.getValueParameters()) {
+            parameter.getModifierList()?.let {
+                components.annotationResolver.resolveAnnotationArguments(it.getAnnotationEntries(), context.trace)
+            }
+        }
         BindingContextUtils.recordFunctionDeclarationToDescriptor(context.trace, functionLiteral, functionDescriptor)
         return functionDescriptor
     }

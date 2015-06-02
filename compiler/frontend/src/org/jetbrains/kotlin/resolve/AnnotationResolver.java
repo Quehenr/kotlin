@@ -152,6 +152,15 @@ public class AnnotationResolver {
         return new AnnotationsImpl(result);
     }
 
+    public void resolveAnnotationArguments(
+            @NotNull List<JetAnnotationEntry> annotationEntryElements,
+            @NotNull BindingTrace trace
+    ) {
+        for (JetAnnotationEntry entryElement : annotationEntryElements) {
+            resolveAnnotationArguments(entryElement, trace);
+        }
+    }
+
     @NotNull
     public JetType resolveAnnotationType(@NotNull JetScope scope, @NotNull JetAnnotationEntry entryElement) {
         JetTypeReference typeReference = entryElement.getTypeReference();

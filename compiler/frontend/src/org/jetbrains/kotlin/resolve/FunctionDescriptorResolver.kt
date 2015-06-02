@@ -88,7 +88,7 @@ class FunctionDescriptorResolver(
     ): SimpleFunctionDescriptor {
         val functionDescriptor = functionConstructor(
                 containingDescriptor,
-                annotationResolver.resolveAnnotationsWithArguments(scope, function.getModifierList(), trace),
+                annotationResolver.resolveAnnotationsWithoutArguments(scope, function.getModifierList(), trace),
                 function.getNameAsSafeName(),
                 CallableMemberDescriptor.Kind.DECLARATION,
                 function.toSourceElement()
@@ -96,6 +96,7 @@ class FunctionDescriptorResolver(
         initializeFunctionDescriptorAndExplicitReturnType(containingDescriptor, scope, function, functionDescriptor, trace, expectedFunctionType)
         initializeFunctionReturnTypeBasedOnFunctionBody(scope, function, functionDescriptor, trace, dataFlowInfo)
         BindingContextUtils.recordFunctionDeclarationToDescriptor(trace, function, functionDescriptor)
+        annotationResolver.resolveAnnotationArguments(function.getAnnotationEntries(), trace)
         return functionDescriptor
     }
 
@@ -338,7 +339,8 @@ class FunctionDescriptorResolver(
                 checkConstructorParameterHasNoModifier(trace, valueParameter)
             }
 
-            val valueParameterDescriptor = descriptorResolver.resolveValueParameterDescriptorWithAnnotationArguments(parameterScope, functionDescriptor,
+
+            val valueParameterDescriptor = descriptorResolver.resolveValueParameterDescriptor(parameterScope, functionDescriptor,
                                                                                               valueParameter, i, type, trace)
             parameterScope.addVariableDescriptor(valueParameterDescriptor)
             result.add(valueParameterDescriptor)
