@@ -191,13 +191,14 @@ public class DescriptorUtils {
 
     @Nullable
     public static ModuleDescriptor getContainingModuleOrNull(@NotNull DeclarationDescriptor descriptor) {
-        ModuleDescriptor moduleDescriptor = getParentOfType(descriptor, ModuleDescriptor.class, false);
-        if (moduleDescriptor != null) {
-            return moduleDescriptor;
-        }
-        PackageViewDescriptor packageViewDescriptor = getParentOfType(descriptor, PackageViewDescriptor.class, false);
-        if (packageViewDescriptor != null) {
-            return packageViewDescriptor.getModule();
+        while (descriptor != null) {
+            if (descriptor instanceof ModuleDescriptor) {
+                return (ModuleDescriptor) descriptor;
+            }
+            if (descriptor instanceof PackageViewDescriptor) {
+                return ((PackageViewDescriptor) descriptor).getModule();
+            }
+            descriptor = descriptor.getContainingDeclaration();
         }
         return null;
     }
@@ -506,7 +507,7 @@ public class DescriptorUtils {
         return classDescriptor.getKind().isSingleton() || isAnonymousObject(classDescriptor);
     }
 
-    public static boolean canHaveSecondaryConstructors(@NotNull ClassDescriptor classDescriptor) {
+    public static boolean canHaveDeclaredConstructors(@NotNull ClassDescriptor classDescriptor) {
         return !isSingletonOrAnonymousObject(classDescriptor) && !isTrait(classDescriptor);
     }
 

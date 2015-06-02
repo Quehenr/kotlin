@@ -339,9 +339,6 @@ public class BodyResolver {
                     recordSupertype(typeReference, supertype);
                     ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(supertype);
                     if (classDescriptor != null) {
-                        if (classDescriptor.getKind() == ClassKind.INTERFACE) {
-                            trace.report(CONSTRUCTOR_IN_TRAIT.on(elementToMark));
-                        }
                         // allow only one delegating constructor
                         if (primaryConstructorDelegationCall[0] == null) {
                             primaryConstructorDelegationCall[0] = results.getResultingCall();
@@ -374,6 +371,7 @@ public class BodyResolver {
                 }
                 if (descriptor.getKind() != ClassKind.INTERFACE &&
                     descriptor.getUnsubstitutedPrimaryConstructor() != null &&
+                    superClass.getKind() != ClassKind.INTERFACE &&
                     !superClass.getConstructors().isEmpty() &&
                     !ErrorUtils.isError(superClass)
                 ) {
@@ -503,15 +501,15 @@ public class BodyResolver {
 
     private void resolvePrimaryConstructorParameters(@NotNull BodiesResolveContext c) {
         for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
-            if (!(entry.getKey() instanceof JetClass)) continue;
-            JetClass klass = (JetClass) entry.getKey();
+            JetClassOrObject klass = entry.getKey();
             ClassDescriptorWithResolutionScopes classDescriptor = entry.getValue();
             ConstructorDescriptor unsubstitutedPrimaryConstructor = classDescriptor.getUnsubstitutedPrimaryConstructor();
 
             AnnotationResolver.resolveAnnotationsArguments(klass.getPrimaryConstructorModifierList(), trace);
 
             if (unsubstitutedPrimaryConstructor != null) {
-                WritableScope parameterScope = getPrimaryConstructorParametersScope(classDescriptor.getScopeForClassHeaderResolution(), unsubstitutedPrimaryConstructor);
+                WritableScope parameterScope = getPrimaryConstructorParametersScope(classDescriptor.getScopeForClassHeaderResolution(),
+                                                                                    unsubstitutedPrimaryConstructor);
                 valueParameterResolver.resolveValueParameters(klass.getPrimaryConstructorParameters(), unsubstitutedPrimaryConstructor.getValueParameters(),
                                        parameterScope, c.getOuterDataFlowInfo(), trace);
             }
@@ -799,30 +797,30 @@ public class BodyResolver {
 
     private void computeDeferredTypes() {
         Collection<Box<DeferredType>> deferredTypes = trace.getKeys(DEFERRED_TYPE);
-        if (deferredTypes != null) {
-            // +1 is a work around agains new Queue(0).addLast(...) bug // stepan.koltsov@ 2011-11-21
-            final Queue<DeferredType> queue = new Queue<DeferredType>(deferredTypes.size() + 1);
-            trace.addHandler(DEFERRED_TYPE, new ObservableBindingTrace.RecordHandler<Box<DeferredType>, Boolean>() {
-                @Override
-                public void handleRecord(WritableSlice<Box<DeferredType>, Boolean> deferredTypeKeyDeferredTypeWritableSlice, Box<DeferredType> key, Boolean value) {
-                    queue.addLast(key.getData());
-                }
-            });
-            for (Box<DeferredType> deferredType : deferredTypes) {
-                queue.addLast(deferredType.getData());
+        if (deferredTypes.isEmpty()) {
+            return;
+        }
+        // +1 is a work around against new Queue(0).addLast(...) bug // stepan.koltsov@ 2011-11-21
+        final Queue<DeferredType> queue = new Queue<DeferredType>(deferredTypes.size() + 1);
+        trace.addHandler(DEFERRED_TYPE, new ObservableBindingTrace.RecordHandler<Box<DeferredType>, Boolean>() {
+            @Override
+            public void handleRecord(WritableSlice<Box<DeferredType>, Boolean> deferredTypeKeyDeferredTypeWritableSlice, Box<DeferredType> key, Boolean value) {
+                queue.addLast(key.getData());
             }
-            while (!queue.isEmpty()) {
-                DeferredType deferredType = queue.pullFirst();
-                if (!deferredType.isComputed()) {
-                    try {
-                        deferredType.getDelegate(); // to compute
-                    }
-                    catch (ReenteringLazyValueComputationException e) {
-                        // A problem should be reported while computing the type
-                    }
+        });
+        for (Box<DeferredType> deferredType : deferredTypes) {
+            queue.addLast(deferredType.getData());
+        }
+        while (!queue.isEmpty()) {
+            DeferredType deferredType = queue.pullFirst();
+            if (!deferredType.isComputed()) {
+                try {
+                    deferredType.getDelegate(); // to compute
+                }
+                catch (ReenteringLazyValueComputationException e) {
+                    // A problem should be reported while computing the type
                 }
             }
         }
     }
-
 }

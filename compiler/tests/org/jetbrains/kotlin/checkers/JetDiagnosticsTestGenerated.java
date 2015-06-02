@@ -325,6 +325,12 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             doTest(fileName);
         }
 
+        @TestMetadata("ObjectWithConstructor.kt")
+        public void testObjectWithConstructor() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/ObjectWithConstructor.kt");
+            doTest(fileName);
+        }
+
         @TestMetadata("OverrideFunctionWithParamDefaultValue.kt")
         public void testOverrideFunctionWithParamDefaultValue() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/OverrideFunctionWithParamDefaultValue.kt");
@@ -2835,6 +2841,12 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("paramNameSameToField.kt")
             public void testParamNameSameToField() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/dataClasses/paramNameSameToField.kt");
+                doTest(fileName);
+            }
+
+            @TestMetadata("repeatedProperties.kt")
+            public void testRepeatedProperties() throws Exception {
+                String fileName = JetTestUtils.navigationMetadata("compiler/testData/diagnostics/tests/dataClasses/repeatedProperties.kt");
                 doTest(fileName);
             }
 
