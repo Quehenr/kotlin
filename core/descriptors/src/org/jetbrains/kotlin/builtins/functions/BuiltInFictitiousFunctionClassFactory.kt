@@ -53,6 +53,8 @@ public class BuiltInFictitiousFunctionClassFactory(
         }
 
         private fun toInt(s: String): Int? {
+            if (s.isEmpty()) return null
+
             var result = 0
             for (c in s) {
                 val d = c - '0'
