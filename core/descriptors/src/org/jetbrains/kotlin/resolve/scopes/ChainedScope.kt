@@ -43,10 +43,12 @@ public open class ChainedScope(
         var result: MutableSet<T>? = null
         for (scope in scopeChain) {
             val fromScope = callback(scope)
-            if (result == null) {
-                result = LinkedHashSet<T>()
+            if (!fromScope.isEmpty()) {
+                if (result == null) {
+                    result = LinkedHashSet<T>()
+                }
+                result.addAll(fromScope)
             }
-            result.addAll(fromScope)
         }
         return result ?: emptySet()
     }
