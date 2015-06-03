@@ -28,15 +28,14 @@ import com.intellij.util.SmartList
 // Reads from:
 // 1. Maps
 // 2. Worker
-// 3. Imports
 
 // Writes to: maps
 
-public class WritableScopeImpl(scope: JetScope,
+public class WritableScopeImpl(override val workerScope: JetScope,
                                private val ownerDeclarationDescriptor: DeclarationDescriptor,
-                               redeclarationHandler: RedeclarationHandler,
-                               debugName: String)
-: WritableScopeWithImports(scope, redeclarationHandler, debugName) {
+                               protected val redeclarationHandler: RedeclarationHandler,
+                               private val debugName: String)
+: AbstractScopeAdapter(), WritableScope {
 
     private val explicitlyAddedDescriptors = SmartList<DeclarationDescriptor>()
     private val declaredDescriptorsAccessibleBySimpleName = HashMultimap.create<Name, DeclarationDescriptor>()
@@ -53,11 +52,30 @@ public class WritableScopeImpl(scope: JetScope,
 
     private var implicitReceiver: ReceiverParameterDescriptor? = null
 
+    private var implicitReceiverHierarchy: List<ReceiverParameterDescriptor>? = null
+
     override fun getContainingDeclaration(): DeclarationDescriptor = ownerDeclarationDescriptor
 
-    override fun importScope(imported: JetScope) {
-        checkMayWrite()
-        super.importScope(imported)
+    private var lockLevel: WritableScope.LockLevel = WritableScope.LockLevel.WRITING
+
+    override fun changeLockLevel(lockLevel: WritableScope.LockLevel): WritableScope {
+        if (lockLevel.ordinal() < this.lockLevel.ordinal()) {
+            throw IllegalStateException("cannot lower lock level from " + this.lockLevel + " to " + lockLevel + " at " + toString())
+        }
+        this.lockLevel = lockLevel
+        return this
+    }
+
+    protected fun checkMayRead() {
+        if (lockLevel != WritableScope.LockLevel.READING && lockLevel != WritableScope.LockLevel.BOTH) {
+            throw IllegalStateException("cannot read with lock level " + lockLevel + " at " + toString())
+        }
+    }
+
+    protected fun checkMayWrite() {
+        if (lockLevel != WritableScope.LockLevel.WRITING && lockLevel != WritableScope.LockLevel.BOTH) {
+            throw IllegalStateException("cannot write with lock level " + lockLevel + " at " + toString())
+        }
     }
 
     override fun getDescriptors(kindFilter: DescriptorKindFilter,
@@ -68,7 +86,6 @@ public class WritableScopeImpl(scope: JetScope,
         val result = ArrayList<DeclarationDescriptor>()
         result.addAll(explicitlyAddedDescriptors)
         result.addAll(workerScope.getDescriptors(kindFilter, nameFilter))
-        getImports().flatMapTo(result) { it.getDescriptors(kindFilter, nameFilter) }
         return result
     }
 
@@ -82,7 +99,7 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getDeclarationsByLabel(labelName: Name): Collection<DeclarationDescriptor> {
         checkMayRead()
 
-        val superResult = super.getDeclarationsByLabel(labelName)
+        val superResult = super<AbstractScopeAdapter>.getDeclarationsByLabel(labelName)
         val declarationDescriptors = labelsToDescriptors?.get(labelName) ?: return superResult
         if (superResult.isEmpty()) return declarationDescriptors
         return declarationDescriptors + superResult
@@ -125,16 +142,13 @@ public class WritableScopeImpl(scope: JetScope,
         addToDeclared(variableDescriptor)
     }
 
-    override fun getProperties(name: Name): Set<VariableDescriptor> {
+    override fun getProperties(name: Name): Collection<VariableDescriptor> {
         checkMayRead()
 
-        val propertyGroupsByName = propertyGroups?.get(name)
-        val result = if (propertyGroupsByName != null) Sets.newLinkedHashSet(propertyGroupsByName) else Sets.newLinkedHashSet()
+        val propertyGroupsByName = propertyGroups?.get(name) ?: return workerScope.getProperties(name)
 
+        val result = Sets.newLinkedHashSet(propertyGroupsByName)
         result.addAll(workerScope.getProperties(name))
-
-        result.addAll(super.getProperties(name))
-
         return result
     }
 
@@ -146,7 +160,7 @@ public class WritableScopeImpl(scope: JetScope,
             return descriptor
         }
 
-        return workerScope.getLocalVariable(name) ?: super.getLocalVariable(name)
+        return workerScope.getLocalVariable(name)
     }
 
     private fun getPropertyGroups(): SetMultimap<Name, VariableDescriptor> {
@@ -173,13 +187,10 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getFunctions(name: Name): Collection<FunctionDescriptor> {
         checkMayRead()
 
-        val functionGroupByName = functionGroups?.get(name)
-        val result = if (functionGroupByName != null) Sets.newLinkedHashSet(functionGroupByName) else Sets.newLinkedHashSet()
+        val functionGroupByName = functionGroups?.get(name) ?: return workerScope.getFunctions(name)
 
+        val result = Sets.newLinkedHashSet(functionGroupByName)
         result.addAll(workerScope.getFunctions(name))
-
-        result.addAll(super.getFunctions(name))
-
         return result
     }
 
@@ -218,7 +229,6 @@ public class WritableScopeImpl(scope: JetScope,
 
         return variableOrClassDescriptors?.get(name) as? ClassifierDescriptor
                ?: workerScope.getClassifier(name)
-               ?: super.getClassifier(name)
     }
 
     override fun getPackage(name: Name): PackageViewDescriptor? {
@@ -226,7 +236,6 @@ public class WritableScopeImpl(scope: JetScope,
 
         return packageAliases?.get(name)
                ?: workerScope.getPackage(name)
-               ?: super.getPackage(name)
     }
 
     override fun setImplicitReceiver(implicitReceiver: ReceiverParameterDescriptor) {
@@ -238,11 +247,20 @@ public class WritableScopeImpl(scope: JetScope,
         this.implicitReceiver = implicitReceiver
     }
 
-    override fun computeImplicitReceiversHierarchy(): List<ReceiverParameterDescriptor> {
+    override fun getImplicitReceiversHierarchy(): List<ReceiverParameterDescriptor> {
+        checkMayRead()
+
+        if (implicitReceiverHierarchy == null) {
+            implicitReceiverHierarchy = computeImplicitReceiversHierarchy()
+        }
+        return implicitReceiverHierarchy!!
+    }
+
+    private fun computeImplicitReceiversHierarchy(): List<ReceiverParameterDescriptor> {
         return if (implicitReceiver != null)
-            listOf(implicitReceiver!!) + super.computeImplicitReceiversHierarchy()
+            listOf(implicitReceiver!!) + super<AbstractScopeAdapter>.getImplicitReceiversHierarchy()
         else
-            super.computeImplicitReceiversHierarchy()
+            super<AbstractScopeAdapter>.getImplicitReceiversHierarchy()
     }
 
     private fun addToDeclared(descriptor: DeclarationDescriptor) {
@@ -252,6 +270,20 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getOwnDeclaredDescriptors(): Collection<DeclarationDescriptor>
             = declaredDescriptorsAccessibleBySimpleName.values()
 
-    override fun printAdditionalScopeStructure(p: Printer) {
+    override fun toString(): String {
+        return javaClass.getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(this)) + " " + debugName + " for " + getContainingDeclaration()
+    }
+
+    override fun printScopeStructure(p: Printer) {
+        p.println(javaClass.getSimpleName(), ": ", debugName, " for ", getContainingDeclaration(), " {")
+        p.pushIndent()
+
+        p.println("lockLevel = ", lockLevel)
+
+        p.print("worker = ")
+        workerScope.printScopeStructure(p.withholdIndentOnce())
+
+        p.popIndent()
+        p.println("}")
     }
 }
