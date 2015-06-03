@@ -132,13 +132,8 @@ public class ClassBuilderFactories {
 
         @Override
         protected String getCommonSuperClass(@NotNull String type1, @NotNull String type2) {
-            try {
-                return super.getCommonSuperClass(type1, type2);
-            }
-            catch (Throwable t) {
-                // @todo we might need at some point do more sophisticated handling
-                return "java/lang/Object";
-            }
+            // The base method behavior is insanity which should not work ever
+            return "java/lang/Object";
         }
     }
 
