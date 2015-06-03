@@ -33,9 +33,9 @@ import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
 import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.load.java.JvmAbi;
+import org.jetbrains.kotlin.load.kotlin.JvmVirtualFileFinder;
 import org.jetbrains.kotlin.load.kotlin.PackageClassUtils;
 import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils;
-import org.jetbrains.kotlin.load.kotlin.JvmVirtualFileFinder;
 import org.jetbrains.kotlin.name.ClassId;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
@@ -78,55 +78,6 @@ public class InlineCodegenUtil {
     public static final String INLINE_MARKER_BEFORE_METHOD_NAME = "beforeInlineCall";
     public static final String INLINE_MARKER_AFTER_METHOD_NAME = "afterInlineCall";
     public static final String INLINE_MARKER_GOTO_TRY_CATCH_BLOCK_END = "goToTryCatchBlockEnd";
-
-    @Nullable
-    public static SMAPAndMethodNode getMethodNode(
-            byte[] classData,
-            final String methodName,
-            final String methodDescriptor,
-            ClassId classId
-    ) throws ClassNotFoundException, IOException {
-        ClassReader cr = new ClassReader(classData);
-        final MethodNode[] node = new MethodNode[1];
-        final String[] debugInfo = new String[2];
-        final int[] lines = new int[2];
-        lines[0] = Integer.MAX_VALUE;
-        lines[1] = Integer.MIN_VALUE;
-        cr.accept(new ClassVisitor(API) {
-
-            @Override
-            public void visitSource(String source, String debug) {
-                super.visitSource(source, debug);
-                debugInfo[0] = source;
-                debugInfo[1] = debug;
-            }
-
-            @Override
-            public MethodVisitor visitMethod(
-                    int access,
-                    @NotNull String name,
-                    @NotNull String desc,
-                    String signature,
-                    String[] exceptions
-            ) {
-                if (methodName.equals(name) && methodDescriptor.equals(desc)) {
-                    node[0] = new MethodNode(API, access, name, desc, signature, exceptions) {
-                        @Override
-                        public void visitLineNumber(int line, @NotNull Label start) {
-                            super.visitLineNumber(line, start);
-                            lines[0] = Math.min(lines[0], line);
-                            lines[1] = Math.max(lines[1], line);
-                        }
-                    };
-                    return node[0];
-                }
-                return null;
-            }
-        }, ClassReader.SKIP_FRAMES | (GENERATE_SMAP ? 0 : ClassReader.SKIP_DEBUG));
-
-        SMAP smap = SMAPParser.parseOrCreateDefault(debugInfo[1], debugInfo[0], classId.toString(), lines[0], lines[1]);
-        return new SMAPAndMethodNode(node[0], smap);
-    }
 
     public static void initDefaultSourceMappingIfNeeded(@NotNull CodegenContext context, @NotNull MemberCodegen codegen, @NotNull GenerationState state) {
         if (state.isInlineEnabled()) {

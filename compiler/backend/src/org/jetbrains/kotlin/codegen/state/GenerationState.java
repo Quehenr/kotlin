@@ -97,6 +97,7 @@ public class GenerationState {
     private final DiagnosticSink diagnostics;
     private final Collection<FqName> packagesWithObsoleteParts;
     private final ClassBuilderFactory interceptedBuilderFactory;
+    private final BytecodeCache bytecodeCache;
 
     @Nullable
     private final String moduleId; // for PackageCodegen in incremental compilation mode
@@ -176,6 +177,8 @@ public class GenerationState {
         this.runtimeTypes = new JvmRuntimeTypes();
 
         this.inlineCycleReporter = new InlineCycleReporter(diagnostics);
+
+        this.bytecodeCache = new BytecodeCache();
     }
 
     @NotNull
@@ -304,6 +307,11 @@ public class GenerationState {
     @NotNull
     public Collection<FqName> getPackagesWithObsoleteParts() {
         return packagesWithObsoleteParts;
+    }
+
+    @NotNull
+    public BytecodeCache getBytecodeCache() {
+        return bytecodeCache;
     }
 
     @Nullable

@@ -639,12 +639,9 @@ public class MethodInliner {
         JvmClassName name = JvmClassName.byInternalName(type);
         String packageClassInternalName = PackageClassUtils.getPackageClassInternalName(name.getPackageFqName());
         if (type.startsWith(packageClassInternalName + '$')) {
-            VirtualFile virtualFile = InlineCodegenUtil.findVirtualFile(inliningContext.state.getProject(), type);
-            if (virtualFile != null) {
-                KotlinJvmBinaryClass klass = KotlinBinaryClassCache.getKotlinBinaryClass(virtualFile);
-                if (klass != null && klass.getClassHeader().getSyntheticClassKind() == KotlinSyntheticClass.Kind.PACKAGE_PART) {
-                    return packageClassInternalName;
-                }
+            VirtualFile file = InlineCodegenUtil.findVirtualFile(inliningContext.state.getProject(), type);
+            if (file != null && inliningContext.state.getBytecodeCache().loadCachedData(file).getIsPackagePart()) {
+                return packageClassInternalName;
             }
         }
 

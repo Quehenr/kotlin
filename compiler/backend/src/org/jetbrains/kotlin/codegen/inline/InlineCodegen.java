@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.codegen.context.CodegenContext;
 import org.jetbrains.kotlin.codegen.context.FieldOwnerContext;
 import org.jetbrains.kotlin.codegen.context.MethodContext;
 import org.jetbrains.kotlin.codegen.context.PackageContext;
+import org.jetbrains.kotlin.codegen.state.BytecodeCache;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
 import org.jetbrains.kotlin.descriptors.*;
@@ -194,14 +195,21 @@ public class InlineCodegen extends CallGenerator {
                 /*use facade class*/
                 containerClassId = PackageClassUtils.getPackageClassId(containerClassId.getPackageFqName());
             }
-            nodeAndSMAP = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(),
-                                                          asmMethod.getName(),
-                                                          asmMethod.getDescriptor(),
-                                                          containerClassId);
 
-            if (nodeAndSMAP == null) {
-                throw new RuntimeException("Couldn't obtain compiled function body for " + descriptorName(functionDescriptor));
-            }
+            BytecodeCache.CachedData cachedData = state.getBytecodeCache().loadCachedData(file);
+            BytecodeCache.MethodInfo methodInfo = cachedData.getMethods().get(asmMethod);
+
+            // TODO: do not use ClassId#toString here, because it may change suddenly
+            nodeAndSMAP = new SMAPAndMethodNode(
+                    methodInfo.getNode(),
+                    SMAPParser.parseOrCreateDefault(
+                            cachedData.getDebugInfo().getDebug(),
+                            cachedData.getDebugInfo().getSource(),
+                            containerClassId.toString(),
+                            methodInfo.getFirstLine(),
+                            methodInfo.getLastLine()
+                    )
+            );
         }
         else {
             PsiElement element = DescriptorToSourceUtils.descriptorToDeclaration(functionDescriptor);
