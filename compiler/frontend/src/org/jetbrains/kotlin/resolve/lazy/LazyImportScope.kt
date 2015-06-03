@@ -191,17 +191,23 @@ class LazyImportResolver(
             descriptorsSelector: (JetScope, Name) -> Collection<D>
     ): Collection<D> {
         return resolveSession.getStorageManager().compute {
-            val descriptors = HashSet<D>()
+            var descriptors: MutableSet<D>? = null
             for (directive in indexedImports.importsForName(name)) {
                 if (directive == directiveUnderResolve) {
                     // This is the recursion in imports analysis
                     throw IllegalStateException("Recursion while resolving many imports: " + directive.getText())
                 }
 
-                descriptors.addAll(descriptorsSelector(getImportScope(directive, lookupMode), name))
+                val descriptorsForImport = descriptorsSelector(getImportScope(directive, lookupMode), name)
+                if (descriptorsForImport.isNotEmpty()) {
+                    if (descriptors == null) {
+                        descriptors = hashSetOf()
+                    }
+                    descriptors.addAll(descriptorsForImport)
+                }
             }
 
-            descriptors
+            descriptors ?: emptySet<D>()
         }
     }
 
