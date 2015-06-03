@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.resolve.scopes
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.Printer
+import org.jetbrains.kotlin.util.collectionUtils.concat
 import java.util.*
 
 public open class ChainedScope(
@@ -40,15 +41,9 @@ public open class ChainedScope(
 
     private inline fun getFromAllScopes<T>(callback: (JetScope) -> Collection<T>): Set<T> {
         if (scopeChain.isEmpty()) return emptySet()
-        var result: MutableSet<T>? = null
+        var result: LinkedHashSet<T>? = null
         for (scope in scopeChain) {
-            val fromScope = callback(scope)
-            if (!fromScope.isEmpty()) {
-                if (result == null) {
-                    result = LinkedHashSet<T>()
-                }
-                result.addAll(fromScope)
-            }
+            result = result.concat(callback(scope))
         }
         return result ?: emptySet()
     }

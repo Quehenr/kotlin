@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.utils.Printer
 
 import java.util.*
 import com.intellij.util.SmartList
+import org.jetbrains.kotlin.util.collectionUtils.concatInOrder
 
 // Reads from:
 // 1. Maps
@@ -146,10 +147,7 @@ public class WritableScopeImpl(override val workerScope: JetScope,
         checkMayRead()
 
         val propertyGroupsByName = propertyGroups?.get(name) ?: return workerScope.getProperties(name)
-
-        val result = Sets.newLinkedHashSet(propertyGroupsByName)
-        result.addAll(workerScope.getProperties(name))
-        return result
+        return concatInOrder(propertyGroupsByName, workerScope.getProperties(name))
     }
 
     override fun getLocalVariable(name: Name): VariableDescriptor? {
@@ -187,11 +185,8 @@ public class WritableScopeImpl(override val workerScope: JetScope,
     override fun getFunctions(name: Name): Collection<FunctionDescriptor> {
         checkMayRead()
 
-        val functionGroupByName = functionGroups?.get(name) ?: return workerScope.getFunctions(name)
-
-        val result = Sets.newLinkedHashSet(functionGroupByName)
-        result.addAll(workerScope.getFunctions(name))
-        return result
+        val functionGroupByName = functionGroups?.get(name)
+        return concatInOrder(functionGroupByName, workerScope.getFunctions(name))
     }
 
     override fun addClassifierDescriptor(classifierDescriptor: ClassifierDescriptor) {
