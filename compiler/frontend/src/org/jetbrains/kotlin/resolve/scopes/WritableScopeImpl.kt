@@ -83,8 +83,7 @@ public class WritableScopeImpl(scope: JetScope,
         checkMayRead()
 
         val superResult = super.getDeclarationsByLabel(labelName)
-        val declarationDescriptors = getLabelsToDescriptors()[labelName]
-        if (declarationDescriptors == null) return superResult
+        val declarationDescriptors = labelsToDescriptors?.get(labelName) ?: return superResult
         if (superResult.isEmpty()) return declarationDescriptors
         return declarationDescriptors + superResult
     }
@@ -94,12 +93,8 @@ public class WritableScopeImpl(scope: JetScope,
 
         val labelsToDescriptors = getLabelsToDescriptors()
         val name = descriptor.getName()
-        var declarationDescriptors = labelsToDescriptors[name]
-        if (declarationDescriptors == null) {
-            declarationDescriptors = ArrayList()
-            labelsToDescriptors.put(name, declarationDescriptors!!)
-        }
-        declarationDescriptors!!.add(descriptor)
+        var declarationDescriptors = labelsToDescriptors.getOrPut(name) { ArrayList() }
+        declarationDescriptors.add(descriptor)
     }
 
     private fun getVariableOrClassDescriptors(): MutableMap<Name, DeclarationDescriptor> {
@@ -107,13 +102,6 @@ public class WritableScopeImpl(scope: JetScope,
             variableOrClassDescriptors = HashMap()
         }
         return variableOrClassDescriptors!!
-    }
-
-    private fun getPackageAliases(): MutableMap<Name, PackageViewDescriptor> {
-        if (packageAliases == null) {
-            packageAliases = HashMap()
-        }
-        return packageAliases!!
     }
 
     override fun addVariableDescriptor(variableDescriptor: VariableDescriptor) {
@@ -140,7 +128,8 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getProperties(name: Name): Set<VariableDescriptor> {
         checkMayRead()
 
-        val result = Sets.newLinkedHashSet(getPropertyGroups().get(name))
+        val propertyGroupsByName = propertyGroups?.get(name)
+        val result = if (propertyGroupsByName != null) Sets.newLinkedHashSet(propertyGroupsByName) else Sets.newLinkedHashSet()
 
         result.addAll(workerScope.getProperties(name))
 
@@ -152,8 +141,8 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getLocalVariable(name: Name): VariableDescriptor? {
         checkMayRead()
 
-        val descriptor = getVariableOrClassDescriptors()[name]
-        if (descriptor is VariableDescriptor && !getPropertyGroups()[name].contains(descriptor)) {
+        val descriptor = variableOrClassDescriptors?.get(name)
+        if (descriptor is VariableDescriptor && propertyGroups?.get(name)?.contains(descriptor) != true) {
             return descriptor
         }
 
@@ -184,7 +173,8 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getFunctions(name: Name): Collection<FunctionDescriptor> {
         checkMayRead()
 
-        val result = Sets.newLinkedHashSet(getFunctionGroups().get(name))
+        val functionGroupByName = functionGroups?.get(name)
+        val result = if (functionGroupByName != null) Sets.newLinkedHashSet(functionGroupByName) else Sets.newLinkedHashSet()
 
         result.addAll(workerScope.getFunctions(name))
 
@@ -226,7 +216,7 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getClassifier(name: Name): ClassifierDescriptor? {
         checkMayRead()
 
-        return getVariableOrClassDescriptors()[name] as? ClassifierDescriptor
+        return variableOrClassDescriptors?.get(name) as? ClassifierDescriptor
                ?: workerScope.getClassifier(name)
                ?: super.getClassifier(name)
     }
@@ -234,7 +224,7 @@ public class WritableScopeImpl(scope: JetScope,
     override fun getPackage(name: Name): PackageViewDescriptor? {
         checkMayRead()
 
-        return getPackageAliases().get(name)
+        return packageAliases?.get(name)
                ?: workerScope.getPackage(name)
                ?: super.getPackage(name)
     }
