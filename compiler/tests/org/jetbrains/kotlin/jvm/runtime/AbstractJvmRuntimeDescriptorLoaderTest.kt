@@ -187,7 +187,7 @@ public abstract class AbstractJvmRuntimeDescriptorLoaderTest : TestCaseWithTmpdi
             val writableScope = WritableScopeImpl(JetScope.Empty, this, RedeclarationHandler.THROW_EXCEPTION, "runtime descriptor loader test")
             classes.forEach { writableScope.addClassifierDescriptor(it) }
             writableScope.changeLockLevel(WritableScope.LockLevel.READING)
-            scope = ChainedScope(null, "", *(listOf(writableScope) + packageScopes).toTypedArray())
+            scope = ChainedScope(this, "synthetic package view for test", *(listOf(writableScope) + packageScopes).toTypedArray())
         }
 
         override fun getFqName() = LoadDescriptorUtil.TEST_PACKAGE_FQNAME
